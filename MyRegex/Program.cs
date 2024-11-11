@@ -1,17 +1,20 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace MyRegex
 {
-    public enum STATE_TYPE {
+    public enum STATE_TYPE
+    {
         STRING_LIT,
         META,
         MULTITUDE,
         RANGE,
     }
-    public class State {
+    public class State
+    {
         public string value;
         public STATE_TYPE type;
-        public State(STATE_TYPE _type, string _value) { 
+        public State(STATE_TYPE _type, string _value) {
             value = _value;
             type = _type;
         }
@@ -24,18 +27,17 @@ namespace MyRegex
     {
         CHAR,
 
-        B_SLASH,
+        B_SLASH, // \
 
-        S_OP,
-        S_CP,
+        S_OP,    // [
+        S_CP,    // ]
 
-        C_OP,
-        C_CP,
+        C_OP,    // {
+        C_CP,    // }
 
-        OP,
-        CP,
     }
-    public class Token {
+    public class Token
+    {
         public TOKEN_TYPE type;
         public string value;
 
@@ -45,7 +47,74 @@ namespace MyRegex
         }
     }
 
-    public class MyRegexC {
+    public class MyRegexC
+    {
+        Token[] LexString(string pattern) {
+            Token[] tokens = new Token[pattern.Length];
+            for (int i = 0; i < pattern.Length; i++) {
+                switch (pattern[i]) {
+                    case '\\':
+                        tokens[i] = new Token(TOKEN_TYPE.B_SLASH, "\\");
+                        break;
+                    case '[':
+                        tokens[i] = new Token(TOKEN_TYPE.S_OP, "[");
+                        break;
+                    case ']':
+                        tokens[i] = new Token(TOKEN_TYPE.S_CP, "]");
+                        break;
+                    default:
+                        tokens[i] = new Token(TOKEN_TYPE.CHAR, pattern[i].ToString());
+                        break;
+                }
+            }
+            return tokens;
+        }
+        State[] ParseTokens(Token[] tokens) {
+            List<State> d_states = new List<State>();
+            int tp = 0;
+            Token temp;
+            int iter;
+            StringBuilder sb;
+            while (tp < tokens.Length) {
+                Token t = tokens[tp];
+                switch (t.type) {
+                    case TOKEN_TYPE.CHAR:
+                        d_states.Add(new State(STATE_TYPE.STRING_LIT, t.value));
+                        break;
+                    case TOKEN_TYPE.B_SLASH:
+                        if (tokens[++tp].type == TOKEN_TYPE.CHAR) d_states.Add(new State(STATE_TYPE.META, "\\" + tokens[tp].value));
+                        else d_states.Add(new State(STATE_TYPE.META, "\\D"));
+                        break;
+                    case TOKEN_TYPE.S_OP:
+                        iter = tp;
+                        temp = tokens[iter];
+                        sb = new StringBuilder();
+                        if (tokens[iter+2].value!="-") {
+                            do {
+                                sb.Append(temp.value);
+                                iter++;
+                                temp = tokens[iter];
+                            } while (iter < tokens.Length && temp.type != TOKEN_TYPE.S_CP);
+                            sb.Remove(0, 1);
+                            d_states.Add(new State(STATE_TYPE.MULTITUDE, sb.ToString()));
+                            tp = iter;
+                        }else {
+                            sb.Append(tokens[iter + 1].value);
+                            sb.Append(tokens[iter + 3].value);
+                            d_states.Add(new State(STATE_TYPE.RANGE, sb.ToString()));
+                            tp += 3;
+                        }
+
+                        break;
+                }
+                
+                tp++;
+            }
+            //foreach(var item in d_states) {
+            //    Console.WriteLine($"{item.type} {item.value}");
+            //}
+            return d_states.ToArray();
+        }
         public bool Matching(State[] states, string str) {
             bool is_match = true;
             for (int i = 0; i < states.Length; i++) {
@@ -80,70 +149,25 @@ namespace MyRegex
             }
             return is_match;
         }
-        static public bool IsMatch(string pattern,string str) {
-
-            return false;
+        public bool IsMatch(string pattern, string str) {
+            return Matching(ParseTokens(LexString(pattern)), str);
         }
     }
     class Program
     {
-        static public Token[] LexString(string pattern) {
-            Token[] tokens = new Token[pattern.Length];
-            for (int i = 0; i < pattern.Length; i++) {
-                switch (pattern[i]) {
-                    case '\\':
-                        tokens[i] = new Token(TOKEN_TYPE.B_SLASH, "\\");
-                        break;
-                    case '(':
-                        tokens[i] = new Token(TOKEN_TYPE.OP, "(");
-                        break;
-                    case ')':
-                        tokens[i] = new Token(TOKEN_TYPE.CP, ")");
-                        break;
-                    case '[':
-                        tokens[i] = new Token(TOKEN_TYPE.S_OP, "[");
-                        break;
-                    case ']':
-                        tokens[i] = new Token(TOKEN_TYPE.S_CP, "]");
-                        break;
-                    default:
-                        tokens[i] = new Token(TOKEN_TYPE.CHAR, pattern[i].ToString());
-                        break;
-                }
-            }
-            return tokens;
-        }
 
-        
+
         static void Main(string[] args) {
             Console.WriteLine("Hello, World!");
-            MyRegexC regex=new MyRegexC();
-            var result = LexString("\\d\\d-\\d\\d");
-            State[] states =[
-                new State(STATE_TYPE.META,"\\D"),
-                new State(STATE_TYPE.META, "\\d"),
-                new State(STATE_TYPE.STRING_LIT,"-"),
-                new State(STATE_TYPE.META, "\\d"),
-                new State(STATE_TYPE.META, "\\d"),
-            ];
-            State[] states1 = [
-                new State(STATE_TYPE.MULTITUDE, "abc"),
-                new State(STATE_TYPE.STRING_LIT, "-"),
-                new State(STATE_TYPE.MULTITUDE, "abc"),
-            ];
-            State[] states2 = [
-                new State(STATE_TYPE.RANGE, "az"),
-                new State(STATE_TYPE.STRING_LIT, "-"),
-                new State(STATE_TYPE.RANGE, "09"),
-            ];
-            Console.WriteLine("___________");
-            Console.WriteLine(regex.Matching(states, "a2-34"));
-            Console.WriteLine(regex.Matching(states, "22-34"));
-            Console.WriteLine(regex.Matching(states1, "ab-34"));
-            Console.WriteLine(regex.Matching(states1, "b-a"));
-            Console.WriteLine(regex.Matching(states2, "a-3"));
-            Console.WriteLine(regex.Matching(states2, "9-h"));
+            MyRegexC regex = new MyRegexC();
+            Console.WriteLine(regex.IsMatch("[abc][abc][abc]", "aaa"));
+            Console.WriteLine(regex.IsMatch("[abc][abc][abc]", "bbb"));
+            Console.WriteLine(regex.IsMatch("[abc][abc][abc]", "ccc"));
+            Console.WriteLine(regex.IsMatch("[abc][abc][abc]", "abc"));
+            Console.WriteLine(regex.IsMatch("[abc][abc][abc]", "cba"));
+
+            Console.WriteLine(regex.IsMatch("[a-z][0-9]", "a9"));
         }
-       
+
     }
 }
