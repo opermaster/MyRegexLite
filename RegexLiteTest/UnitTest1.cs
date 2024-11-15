@@ -84,5 +84,31 @@ namespace RegexLiteTest
             Assert.True(rgx.IsMatch("[A-Z][a-z]", "Ba"));
             Assert.False(rgx.IsMatch("[A-Z][a-z]", "ab"));
         }
+
+        [Test]
+        public void TestRepeatExact() {
+            Assert.True(rgx.IsMatch("a{3}", "aaa"));
+            Assert.True(rgx.IsMatch("a{2}", "aa")); 
+            Assert.True(rgx.IsMatch("a{4}", "aaaa")); 
+        }
+
+        [Test]
+        public void TestRepeatRange() {
+            Assert.True(rgx.IsMatch("a{2}", "aa"));
+            Assert.True(rgx.IsMatch("a{1,3}", "aaa")); 
+            Assert.True(rgx.IsMatch("a{2,4}", "aaaa")); 
+        }
+
+        [Test]
+        public void TestRepeatWithMultiplePatterns() {
+            Assert.True(rgx.IsMatch("[abc]{2,3}", "ab"));
+            Assert.True(rgx.IsMatch("[abc]{2,3}", "abc")); 
+            Assert.True(rgx.IsMatch("[abc]{2,4}", "abcd")); 
+        }
+
+        [Test]
+        public void TestMixedPatternsWithRepeat() {
+            Assert.True(rgx.IsMatch("[a-z]{1}[0-9]{2}[abc]{3}", "a12abc"));
+        }
     }
 }
